@@ -1,0 +1,12 @@
+{
+  "name": "forti-sdngcp-autoupdate-projects",
+  "version": "1.0.0",
+  "description": "Sample script to autoamtically update project list in FortiGate SDN Connector for Google Cloud.",
+  "main": "index.js",
+  "author": "bmoczulski@fortinet.com",
+  "license": "ISC",
+  "dependencies": {
+    "@google-cloud/resource-manager": "^3.0.0",
+    "axios": "^0.21.4"
+  }
+}
