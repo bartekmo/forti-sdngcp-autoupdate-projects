@@ -2,6 +2,8 @@
 
    This script pulls list of projects available to its service account
    and updates the gcp-project-list in FortiGate SDN connector configuration.
+
+   author: Bartek Moczulski <bmoczulski@fortinet.com>
 */
 
 /* Configuration
@@ -80,7 +82,6 @@ async function getProjects() {
 
    Connector name (default "gcp") is defined in sdnConnectorName const at the top.
 
-   No support for zone filtering.
 */
 async function refreshFgtConnector( orgRoot ) {
   var getProjectsFunction;
