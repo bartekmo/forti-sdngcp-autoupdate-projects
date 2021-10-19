@@ -17,12 +17,13 @@
    ZONE_FILTER - (optional) space-separated list of zones to restrict connector to (e.g. "europe-west1-b europe-west1-c")
 */
 
+// Update this const if your SDN Connector has a different name
+const sdnConnectorName = 'gcp';
+
+// prepare the API client
 const {ProjectsClient} = require('@google-cloud/resource-manager');
 const Axios = require('axios');
 const https = require('https');
-
-// Update this const if your SDN Connector has a different name
-const sdnConnectorName = 'gcp';
 
 const pclient = new ProjectsClient();
 const axiosSdnConnector = Axios.create({
@@ -32,6 +33,8 @@ const axiosSdnConnector = Axios.create({
   })
 })
 
+// pull list of zones from environemnt. the same set of zones will be applied
+// as a filter to all projects
 var zoneFilter = [];
 process.env.ZONE_FILTER.split(" ").forEach( zone => {
   zoneFilter.push({name: zone});
@@ -39,6 +42,8 @@ process.env.ZONE_FILTER.split(" ").forEach( zone => {
 
 /* Function to pull list of available projects in a given folder/org
    and format it for direct use in FortiGate API.
+
+   Returns an object to be used directly in FGT API
 */
 async function getProjectsFiltered(parent='') {
   const projects = pclient.searchProjectsAsync();
@@ -61,6 +66,8 @@ async function getProjectsFiltered(parent='') {
 
 /* Function to pull list of available projects regardless of folder/org
    and format it for direct use in FortiGate API.
+
+  Returns an object to be used directly in FGT API
 */
 async function getProjects() {
   const projects = pclient.searchProjectsAsync();
@@ -80,10 +87,10 @@ async function getProjects() {
    Note the whole connector gets overwritten, so make sure the definition is
    ok for your environment (it's very basic in this version).
 
-   Connector name (default "gcp") is defined in sdnConnectorName const at the top.
-
+   Connector name (default="gcp") is defined in sdnConnectorName global
 */
 async function refreshFgtConnector( orgRoot ) {
+  //select proper function based on existence of the parent filter
   var getProjectsFunction;
   if ( orgRoot === undefined ) {
     getProjectsFunction = getProjects;
@@ -103,5 +110,7 @@ async function refreshFgtConnector( orgRoot ) {
     })
 } //refreshFgtConnector()
 
+/******************************************************************************/
 
+// call the main function
 refreshFgtConnector(process.env.PROJECTS_PARENT);
