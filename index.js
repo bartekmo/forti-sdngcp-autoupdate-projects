@@ -1,4 +1,4 @@
-/* FortiGate projects list updater
+/* FortiGate GCP projects list updater
 
    This script pulls list of projects available to its service account
    and updates the gcp-project-list in FortiGate SDN connector configuration.
@@ -11,6 +11,8 @@
    FGT_HOST - IP address of FortiGate to be updated
    FGT_PORT - management port number of FortiGate to be updated
    FGT_APIKEY - api key for accessing FortiGate (in production you'd move it to KMS)
+   PROJECTS_PARENT - (optional) container with all projects to be scanned, e.g. 'folders/123456789'
+   ZONE_FILTER - (optional) space-separated list of zones to restrict connector to (e.g. "europe-west1-b europe-west1-c")
 */
 
 const {ProjectsClient} = require('@google-cloud/resource-manager');
@@ -28,6 +30,11 @@ const axiosSdnConnector = Axios.create({
   })
 })
 
+var zoneFilter = [];
+process.env.ZONE_FILTER.split(" ").forEach( zone => {
+  zoneFilter.push({name: zone});
+})
+
 /* Function to pull list of available projects in a given folder/org
    and format it for direct use in FortiGate API.
 */
@@ -35,11 +42,17 @@ async function getProjectsFiltered(parent='') {
   const projects = pclient.searchProjectsAsync();
   var res = [];
 
+  console.log( "Filtering by "+parent );
+
   for await (const project of projects) {
     if ( parent == project.parent ) {
-      res.push({id: project.projectId});
+      res.push({
+        id: project.projectId,
+        'gcp-zone-list': zoneFilter
+      });
     }
   }
+  console.log( 'Found '+res.length+' projects.' )
   return res;
 } // getProjectsFiltered()
 
@@ -51,9 +64,12 @@ async function getProjects() {
   const projects = pclient.searchProjectsAsync();
   var res = [];
 
+  console.log( "Getting all projects" );
+
   for await (const project of projects) {
     res.push({id: project.projectId});
   }
+  console.log( 'Found '+res.length+' projects.' )
   return res;
 } //getProjects()
 
@@ -67,30 +83,24 @@ async function getProjects() {
    No support for zone filtering.
 */
 async function refreshFgtConnector( orgRoot ) {
+  var getProjectsFunction;
+  if ( orgRoot === undefined ) {
+    getProjectsFunction = getProjects;
+  } else {
+    getProjectsFunction = getProjectsFiltered;
+  }
+
   axiosSdnConnector.put( `${sdnConnectorName}?access_token=${process.env.FGT_APIKEY}`, {
     type: "gcp",
-    'gcp-project-list': await getProjects( orgRoot )
+    'gcp-project-list': await getProjectsFunction( orgRoot )
   })
     .then( res => {
-      console.log( "Connector updated." );
+      console.log( "Connector updated successfully." );
     })
     .catch( err => {
       console.log( err );
     })
 } //refreshFgtConnector()
 
-/*
-// not needed at the moment
 
-function getFgtGcpProjectList() {
-  axiosSdnConnector.get( `${sdnConnectorName}/gcp-project-list?access_token=${process.env.FGT_APIKEY}` )
-    .then( res => {
-      console.log( res.data );
-    })
-    .catch( err => {
-      console.log( err );
-    })
-}
-*/
-
-refreshFgtConnector('folders/556234849856');
+refreshFgtConnector(process.env.PROJECTS_PARENT);
